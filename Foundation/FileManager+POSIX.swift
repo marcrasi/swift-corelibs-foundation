@@ -933,7 +933,12 @@ extension FileManager {
                 var statInfo = stat()
                 var btime = timespec()
                 guard _stat_with_btime(fsRep, &statInfo, &btime) == 0 else {
-                    throw _NSErrorWithErrno(errno, reading: true, path: path)
+                    switch errno {
+                    case 1:  // EPERM
+                      return try _statxFallback(atPath: path, withFileSystemRepresentation: fsRep)
+                    default:
+                      throw _NSErrorWithErrno(errno, reading: true, path: path)
+                    }
                 }
 
                 let sec = btime.tv_sec
@@ -947,11 +952,15 @@ extension FileManager {
                 }
                 return (statInfo, creationDate)
             } else {
-                // fallback if statx() is unavailable or fails
-                let statInfo = try _lstatFile(atPath: path, withFileSystemRepresentation: fsRep)
-                return (statInfo, nil)
+                return try _statxFallback(atPath: path, withFileSystemRepresentation: fsRep)
             }
         }
+    }
+
+    // Fallback if statx() is unavailable or fails
+    private func _statxFallback(atPath path: String, withFileSystemRepresentation fsRep: UnsafePointer<Int8>?) throws -> (stat, Date?) {
+        let statInfo = try _lstatFile(atPath: path, withFileSystemRepresentation: fsRep)
+        return (statInfo, nil)
     }
 #endif
 
