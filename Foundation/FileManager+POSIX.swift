@@ -932,8 +932,9 @@ extension FileManager {
             if supportsStatx {
                 var statInfo = stat()
                 var btime = timespec()
-                guard _stat_with_btime(fsRep, &statInfo, &btime) == 0 else {
-                    switch errno {
+                let statxResult = _stat_with_btime(fsRep, &statInfo, &btime)
+                guard statxResult.return_value == 0 else {
+                    switch statxResult.errno_value {
                     case 1:  // EPERM
                       return try _statxFallback(atPath: path, withFileSystemRepresentation: fsRep)
                     default:
